@@ -27,30 +27,27 @@ sudo docker ps -a
 CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS          PORTS                                       NAMES
 263b9e52a44e   postgres:14   "docker-entrypoint.s…"   15 minutes ago   Up 15 minutes   0.0.0.0:5432->5432/tcp, :::5432->5432/tcp   pg-docker
 
-10. Создал контейнер с сервером и подключился без открытия порта наружу и сделал запрос к test
-sudo docker run --name pg-server --network pg-net -e POSTGRES_PASSWORD=postgres -d -v /var/lib/postgres:/var/lib/postgresql/data postgres:14
-sudo docker run -it --rm --network pg-net --name pg-client postgres:14 psql -h pg-server -U postgres
-select * from test;
+10. Удалил контейнер с сервером
+otus@otus-vm-db-pg-net-1:~$ sudo docker stop pg-docker
+pg-docker
+otus@otus-vm-db-pg-net-1:~$ sudo docker rm pg-docker
+pg-docker
+otus@otus-vm-db-pg-net-1:~$ sudo docker ps -a
+CONTAINER ID   IMAGE         COMMAND                  CREATED       STATUS       PORTS      NAMES
+
+11.Создал контейнер с сервером снова
+otus@otus-vm-db-pg-net-1:~$ sudo docker run --name pg-docker --network pg-net -e POSTGRES_PASSWORD=postgres -d -p 5432:5432 -v /var/lib/postgres:/var/lib/postgresql/data postgres:14
+2df8a387b841b41fd09a0e95c99c8f50db57363f4ff856a49fce00ce851596dd
+
+12. Подключился снова из контейнера с клиентом к контейнеру с сервером - данные на месте
+otus@otus-vm-db-pg-net-1:~$ sudo docker run -it --rm --network pg-net --name pg-client postgres:14 psql -h pg-docker -U postgres
+Password for user postgres:
+psql (14.4 (Debian 14.4-1.pgdg110+1))
+Type "help" for help.
+
+postgres=# select * from test;
  i | amount
 ---+--------
  1 |    100
  2 |    500
 (2 rows)
-postgres=# \q
-
-11. Проверил, что подключился через отдельный контейнер:
-
-otus@otus-vm-db-pg-net-1:~$ sudo docker ps -a
-CONTAINER ID   IMAGE         COMMAND                  CREATED              STATUS              PORTS                                       NAMES
-8fe6ef2a2b64   postgres:14   "docker-entrypoint.s…"   About a minute ago   Up About a minute   5432/tcp                                    pg-server
-263b9e52a44e   postgres:14   "docker-entrypoint.s…"   23 minutes ago       Up 22 minutes       0.0.0.0:5432->5432/tcp, :::5432->5432/tcp   pg-docker
-
-Далее в задании необходимо подключиться к контейнеру сервера извне. Тут возникла проблема: скачал и установил дистрибутив докер для windows, потребовалась перезагрузка,
-после перезагрузки система упала в синьку. Повторная перезагрузка не помогла - пришлось восстанавливать систему. После восстановления решил поднять еще одну ВМ на YC  
-и подключиться с нее
-
-12. Открыл вторую сессию по SSH к другой ВМ и установил докер
-13. попытался подключился к контейнеру pg-server
-
-
-14. Удалил контейнер с сервером
