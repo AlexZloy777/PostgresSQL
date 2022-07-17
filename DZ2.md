@@ -46,8 +46,8 @@ psql (14.4 (Debian 14.4-1.pgdg110+1))
 Type "help" for help.
 
 postgres=# select * from test;
- i | amount
- ---+--------
- 1 |    100
- 2 |    500
-(2 rows)
+ - i | amount
+ - ---+--------
+ - 1 |    100
+ - 2 |    500
+- (2 rows)
