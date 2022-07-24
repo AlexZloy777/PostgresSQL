@@ -1,10 +1,10 @@
 1. Cоздал виртуальную машину c Ubuntu 20.04 LTS (bionic) в YC
-2. Поставил на нее PostgreSQL 14 через sudo apt
+2. Поставил на нее PostgreSQL 14
 3. Проверил что кластер запущен через sudo -u postgres pg_lsclusters
 - postgres@postgres:~$ sudo -u postgres pg_lsclusters
 - Ver Cluster Port Status Owner    Data directory              Log file
 - 14  main    5432 online postgres /var/lib/postgresql/14/main /var/log/postgresql/postgresql-14-main.log
-4. Зайшел из под пользователя postgres в psql и сделал произвольную таблицу с произвольным содержимым 
+4. Зашел из под пользователя postgres в psql и сделал произвольную таблицу с произвольным содержимым 
 - postgres@postgres:~$ sudo -u postgres psql -p 5432
 - psql (14.4 (Ubuntu 14.4-1.pgdg20.04+1))
 - Type "help" for help.
@@ -30,7 +30,7 @@
 - postgres@postgres:~$ sudo -u postgres pg_ctlcluster 14 main start
 - Error: /var/lib/postgresql/14/main is not accessible or does not exist
 12. Кластер не запустится т.к. содержимое перенесено в mnt/data
-13. Найшел конфигурационный параметр в файлах раположенных в /etc/postgresql/14/main который надо поменять и поменял его
+13. Нашел конфигурационный параметр в файлах раположенных в /etc/postgresql/14/main который надо поменять и поменял его
 - Поменял список видимых адресов на внутреннюю подсеть для выполнения задания со *
 - postgres@postgres:/etc/postgresql/14/main$ sudo nano /etc/postgresql/14/main/pg_hba.conf
 - host    all             all             10.0.0.0/0            scram-sha-256
