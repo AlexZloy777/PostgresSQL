@@ -1,33 +1,91 @@
-1 создайте новый кластер PostgresSQL 13 (на выбор - GCE, CloudSQL)
-2 зайдите в созданный кластер под пользователем postgres
-3 создайте новую базу данных testdb
-4 зайдите в созданную базу данных под пользователем postgres
-5 создайте новую схему testnm
-6 создайте новую таблицу t1 с одной колонкой c1 типа integer
-7 вставьте строку со значением c1=1
-8 создайте новую роль readonly
-9 дайте новой роли право на подключение к базе данных testdb
-10 дайте новой роли право на использование схемы testnm
-11 дайте новой роли право на select для всех таблиц схемы testnm
-12 создайте пользователя testread с паролем test123
-13 дайте роль readonly пользователю testread
-14 зайдите под пользователем testread в базу данных testdb
-15 сделайте select * from t1;
-16 получилось? (могло если вы делали сами не по шпаргалке и не упустили один существенный момент про который позже)
-17 напишите что именно произошло в тексте домашнего задания
-18 у вас есть идеи почему? ведь права то дали?
-19 посмотрите на список таблиц
-20 подсказка в шпаргалке под пунктом 20
-21 а почему так получилось с таблицей (если делали сами и без шпаргалки то может у вас все нормально)
-22 вернитесь в базу данных testdb под пользователем postgres
-23 удалите таблицу t1
-24 создайте ее заново но уже с явным указанием имени схемы testnm
-25 вставьте строку со значением c1=1
-26 зайдите под пользователем testread в базу данных testdb
-27 сделайте select * from testnm.t1;
-28 получилось?
-29 есть идеи почему? если нет - смотрите шпаргалку
-30 как сделать так чтобы такое больше не повторялось? если нет идей - смотрите шпаргалку
+1. Создал новый кластер PostgresSQL 14
+- postgres@postgres:~$ pg_lsclusters
+- Ver Cluster Port Status Owner    Data directory              Log file
+- 14  main    5432 online postgres /var/lib/postgresql/14/main /var/log/postgresql/postgresql-14-main.log
+2. Зашел в созданный кластер под пользователем postgres
+- postgres@postgres:~$ sudo -u postgres psql
+- psql (14.4 (Ubuntu 14.4-1.pgdg20.04+1))
+- Type "help" for help.
+- 
+- postgres=#
+3. Создал новую базу данных testdb
+- postgres=# CREATE DATABASE testdb;
+- CREATE DATABASE
+4. Зашел в созданную базу данных под пользователем postgres
+- postgres=# \c testdb
+- You are now connected to database "testdb" as user "postgres".
+- testdb=#
+5. Создал новую схему testnm
+- testdb=# CREATE SCHEMA testnm;
+- CREATE SCHEMA
+6. Создал новую таблицу t1 с одной колонкой c1 типа integer
+-testdb=# CREATE TABLE t1(c1 integer);
+- CREATE TABLE
+7. Вставил строку со значением c1=1
+- testdb=# INSERT INTO t1 values(1);
+- INSERT 0 1
+8. Создал новую роль readonly
+- testdb=# CREATE role readonly;
+-CREATE ROLE
+9. Дал новой роли право на подключение к базе данных testdb
+- testdb=# grant connect on DATABASE testdb TO readonly;
+- GRANT
+10. Дал новой роли право на использование схемы testnm
+- testdb=# grant usage on SCHEMA testnm to readonly;
+- GRANT
+11. Дал новой роли право на select для всех таблиц схемы testnm
+- grant SELECT on all TABLEs in SCHEMA testnm TO readonly;
+- GRANT
+12. Создал пользователя testread с паролем test123
+- testdb=# CREATE USER testread with password 'test123';
+- CREATE ROLE
+13. Дал роль readonly пользователю testread
+- testdb=# grant readonly TO testread;
+- GRANT ROLE
+14. Зашел под пользователем testread в базу данных testdb
+- postgres@postgres:~$ psql -h 127.0.0.1 -U testread -d testdb -W
+- Password:
+- psql (14.4 (Ubuntu 14.4-1.pgdg20.04+1))
+- SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, bits: 256, compression: off)
+- Type "help" for help.
+-
+- testdb=>
+15. Сделал select * from t1;
+- testdb=> select * from t1;
+- ERROR:  permission denied for table t1
+16. Не получилось. (делаю по шпаргалке, чтобы разобраться в отличияx сxем с MS SQL)
+17. Думаю, что таблица создана в схеме по умолчанию public (т.к. явно ее не указывали) и прав на public для роли readonly не давали
+18. Посмотрел на список таблиц и увидел что для testdb - {=Tc/postgres,postgres=CTc/postgres,readonly=c/postgres}
+19. Вернулся в базу данных testdb под пользователем postgres
+- postgres=# \c testdb postgres
+- You are now connected to database "testdb" as user "postgres".
+- testdb=#
+20. Удалил таблицу t1
+- testdb=# drop TABLE t1;
+- DROP TABLE
+21. Создал ее заново но уже с явным указанием имени схемы testnm
+- testdb=# CREATE TABLE testnm.t1(c1 integer);
+- CREATE TABLE
+22. Вставил строку со значением c1=1
+- testdb=# INSERT INTO testnm.t1 values(1);
+- INSERT 0 1
+23. Зашел под пользователем testread в базу данных testdb
+-postgres@postgres:~$ psql -h 127.0.0.1 -U testread -d testdb -W
+- Password:
+- psql (14.4 (Ubuntu 14.4-1.pgdg20.04+1))
+- SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, bits: 256, compression: off)
+- Type "help" for help.
+-
+- testdb=>
+24. Сделал select * from testnm.t1;
+- testdb=> select * from testnm.t1;
+- ERROR:  permission denied for table t1
+25. Не получилось
+26. Потому что grant SELECT on all TABLEs in SCHEMA testnm TO readonly дал доступ только для существующих на тот момент времени таблиц а t1 пересоздавалась
+27. Вернулся в базу данных testdb под пользователем postgres
+- postgres=# \c testdb postgres
+- You are now connected to database "testdb" as user "postgres".
+- testdb=#
 31 сделайте select * from testnm.t1;
 32 получилось?
 33 есть идеи почему? если нет - смотрите шпаргалку
