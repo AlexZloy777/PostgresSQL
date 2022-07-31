@@ -26,7 +26,7 @@
 - INSERT 0 1
 8. Создал новую роль readonly
 - testdb=# CREATE role readonly;
--CREATE ROLE
+- CREATE ROLE
 9. Дал новой роли право на подключение к базе данных testdb
 - testdb=# grant connect on DATABASE testdb TO readonly;
 - GRANT
