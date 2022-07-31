@@ -19,7 +19,7 @@
 - testdb=# CREATE SCHEMA testnm;
 - CREATE SCHEMA
 6. Создал новую таблицу t1 с одной колонкой c1 типа integer
--testdb=# CREATE TABLE t1(c1 integer);
+- testdb=# CREATE TABLE t1(c1 integer);
 - CREATE TABLE
 7. Вставил строку со значением c1=1
 - testdb=# INSERT INTO t1 values(1);
@@ -102,8 +102,8 @@
 ----
 -  1
 - (1 row)
-31. Потому что ALTER default будет действовать для новых таблиц а grant SELECT on all TABLEs in SCHEMA testnm TO readonly отработал только для существующих на тот момент времени. Надо сделать снова или grant SELECT или пересоздать таблицу
-32. Пробую выполнить команду create table t2(c1 integer); insert into t2 values (2);
+31. Получилось потому, что ALTER default будет действовать для новых таблиц а grant SELECT on all TABLEs in SCHEMA testnm TO readonly отработал только для существующих на тот момент времени. Надо сделать снова или grant SELECT или пересоздать таблицу.
+33. Пробую выполнить команду create table t2(c1 integer); insert into t2 values (2);
 - testdb=> create table t2(c1 integer); insert into t2 values (2);
 CREATE TABLE
 INSERT 0 1
