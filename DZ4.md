@@ -53,7 +53,7 @@
 15. Сделал select * from t1;
 - testdb=> select * from t1;
 - ERROR:  permission denied for table t1
-16. Не получилось. (делаю по шпаргалке, чтобы разобраться в отличияx сxем с MS SQL)
+16. Не получилось. 
 17. Думаю, что таблица создана в схеме по умолчанию public (т.к. явно ее не указывали) и прав на public для роли readonly не давали
 18. Посмотрел на список таблиц и увидел что для testdb - {=Tc/postgres,postgres=CTc/postgres,readonly=c/postgres}
 19. Вернулся в базу данных testdb под пользователем postgres
@@ -86,15 +86,59 @@
 - postgres=# \c testdb postgres
 - You are now connected to database "testdb" as user "postgres".
 - testdb=#
-31 сделайте select * from testnm.t1;
-32 получилось?
-33 есть идеи почему? если нет - смотрите шпаргалку
-31 сделайте select * from testnm.t1;
-32 получилось?
-33 ура!
-34 теперь попробуйте выполнить команду create table t2(c1 integer); insert into t2 values (2);
-35 а как так? нам же никто прав на создание таблиц и insert в них под ролью readonly?
-36 есть идеи как убрать эти права? если нет - смотрите шпаргалку
-37 если вы справились сами то расскажите что сделали и почему, если смотрели шпаргалку - объясните что сделали и почему выполнив указанные в ней команды
-38 теперь попробуйте выполнить команду create table t3(c1 integer); insert into t2 values (2);
-39 расскажите что получилось и почему 
+28. Выдал права на выборку сxеме testnm - ALTER default privileges in SCHEMA testnm grant SELECT on TABLEs to readonly;
+29. Зашел под пользователем testread в базу данных testdb
+-postgres@postgres:~$ psql -h 127.0.0.1 -U testread -d testdb -W
+- Password:
+- psql (14.4 (Ubuntu 14.4-1.pgdg20.04+1))
+- SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, bits: 256, compression: off)
+- Type "help" for help.
+-
+- testdb=>
+30. Сделал select * from testnm.t1;
+- Делаю select * from testnm.t1;
+- testdb=> select * from testnm.t1;
+- c1
+----
+-  1
+- (1 row)
+31. Потому что ALTER default будет действовать для новых таблиц а grant SELECT on all TABLEs in SCHEMA testnm TO readonly отработал только для существующих на тот момент времени. Надо сделать снова или grant SELECT или пересоздать таблицу
+32. Пробую выполнить команду create table t2(c1 integer); insert into t2 values (2);
+- testdb=> create table t2(c1 integer); insert into t2 values (2);
+CREATE TABLE
+INSERT 0 1
+33. Получилось это все потому что search_path указывает в первую очередь на схему public. А схема public создается в каждой базе данных по умолчанию. И grant на все действия в этой схеме дается роли public. А роль public добавляется всем новым пользователям. Соответсвенно каждый пользователь может по умолчанию создавать объекты в схеме public любой базы данных, ес-но если у него есть право на подключение к этой базе данных.
+34. Наверно нужно забрать права на создание и редактирование из сxемы public для базы testdb. (смотрю шпаргалку)
+35. Зашел в базу под postgres 
+- postgres@postgres:~$ psql -U postgres
+- psql (14.4 (Ubuntu 14.4-1.pgdg20.04+1))
+- Type "help" for help.
+
+- postgres=# \c testdb
+- testdb=#
+36. Убрал права на создание 
+- testdb=# revoke CREATE on SCHEMA public FROM public;
+- REVOKE
+37. Убрал все предоставленные права в testdb из cxемы public
+- testdb=# revoke all on DATABASE testdb FROM public;
+- REVOKE
+38. Зашел в testdb под testread 
+- psql -h 127.0.0.1 -U testread -d testdb -W
+- Password:
+- psql (14.4 (Ubuntu 14.4-1.pgdg20.04+1))
+- SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, bits: 256, compression: off)
+- Type "help" for help.
+-
+- testdb=>
+39. Пробую выполнить команду create table t3(c1 integer); insert into t2 values (2);
+- testdb=> create table t3(c1 integer); insert into t2 values (2);
+- ERROR:  permission denied for schema public
+- LINE 1: create table t3(c1 integer);
+- INSERT 0 1
+40. Таблица не была создана (права на создание забрали), а запись в таблицу t2 была добавлена (права на вставку не забирали)
+- testdb=> select * from t2;
+- c1
+----
+-  2
+-  2
+(2 rows)
