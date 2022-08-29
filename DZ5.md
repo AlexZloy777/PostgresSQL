@@ -1,8 +1,117 @@
-1. создать GCE инстанс типа e2-medium и standard disk 10GB
-2. установить на него PostgreSQL 13 с дефолтными настройками
-3. применить параметры настройки PostgreSQL из прикрепленного к материалам занятия файла
-4. выполнить pgbench -i postgres
-5. запустить pgbench -c8 -P 60 -T 3600 -U postgres postgres
-6. дать отработать до конца
+1. Создал в YC инстанс на Ubuntu c 2 CPU 4 Gb Ram и standard disk 10GB
+2. Установил на него PostgreSQL 14 с дефолтными настройками
+3. Применил параметры настройки PostgreSQL из прикрепленного к материалам занятия файла через alter system set
+4. Выполнил pgbench -i postgres
+- postgres@postgres:~$ pgbench -i postgres
+- dropping old tables...
+- creating tables...
+- generating data (client-side)...
+- 100000 of 100000 tuples (100%) done (elapsed 0.07 s, remaining 0.00 s)
+- vacuuming...
+- creating primary keys...
+- done in 0.36 s (drop tables 0.01 s, create tables 0.01 s, client-side generate 0.18 s, vacuum 0.07 s, primary keys 0.09 s).
+5. Запустил pgbench -c8 -P 60 -T 3600 -U postgres postgres
+6. Дал отработать до конца
 7. зафиксировать среднее значение tps в последней ⅙ части работы
-8. а дальше настроить autovacuum максимально эффективно так чтобы получить максимально ровное значение tps на горизонте часа
+- progress: 3300.0 s, 317.6 tps, lat 25.189 ms stddev 11.856
+- progress: 3360.0 s, 320.4 tps, lat 24.960 ms stddev 11.080
+- progress: 3420.0 s, 320.9 tps, lat 24.930 ms stddev 11.124
+- progress: 3480.0 s, 320.4 tps, lat 24.971 ms stddev 11.557
+- progress: 3540.0 s, 310.2 tps, lat 25.793 ms stddev 13.036
+- progress: 3600.0 s, 317.6 tps, lat 25.186 ms stddev 12.036
+- transaction type: <builtin: TPC-B (sort of)>
+- scaling factor: 1
+- query mode: simple
+- number of clients: 8
+- number of threads: 1
+- duration: 3600 s
+- number of transactions actually processed: 1904498
+- latency average = 15.122 ms
+- latency stddev = 10.524 ms
+- initial connection time = 16.251 ms
+- tps = 529.024618 (without initial connection time)
+- т.е. при среднем tps 529 в последней части проседает до 310-320
+8. Дальше настраиваю autovacuum максимально агрессивно (из примера в презентации) так чтобы получить максимально ровное значение tps на горизонте часа
+- alter system set log_autovacuum_min_duration = 0;
+- alter system set autovacuum_max_workers = 10;
+- alter system set autovacuum_naptime = 15;
+- alter system set autovacuum_vacuum_threshold = 25;
+- alter system set autovacuum_vacuum_scale_factor = 0.05;
+- alter system set autovacuum_vacuum_cost_delay = 10;
+- alter system set autovacuum_vacuum_cost_limit = 1000;
+9. Запустил pgbench -c8 -P 60 -T 3600 -U postgres postgres
+- postgres@postgres:~$ pgbench -c8 -P 60 -T 3600 -U postgres postgres
+- pgbench (14.5 (Ubuntu 14.5-1.pgdg22.04+1))
+- starting vacuum...end.
+- progress: 60.0 s, 577.6 tps, lat 13.844 ms stddev 9.547
+- progress: 120.0 s, 646.7 tps, lat 12.370 ms stddev 7.724
+- progress: 180.0 s, 603.2 tps, lat 13.261 ms stddev 8.710
+- progress: 240.0 s, 569.1 tps, lat 14.058 ms stddev 10.543
+- progress: 300.0 s, 616.6 tps, lat 12.974 ms stddev 8.657
+- progress: 360.0 s, 389.9 tps, lat 20.512 ms stddev 15.289
+- progress: 420.0 s, 538.6 tps, lat 14.859 ms stddev 11.301
+- progress: 480.0 s, 522.6 tps, lat 15.306 ms stddev 11.385
+- progress: 540.0 s, 566.4 tps, lat 14.122 ms stddev 9.292
+- progress: 600.0 s, 318.9 tps, lat 25.085 ms stddev 11.660
+- progress: 660.0 s, 316.6 tps, lat 25.271 ms stddev 12.182
+- progress: 720.0 s, 320.0 tps, lat 24.996 ms stddev 11.385
+- progress: 780.0 s, 315.3 tps, lat 25.375 ms stddev 12.488
+- progress: 840.0 s, 319.9 tps, lat 25.005 ms stddev 11.557
+- progress: 900.0 s, 318.7 tps, lat 25.101 ms stddev 11.998
+- progress: 960.0 s, 310.2 tps, lat 25.790 ms stddev 14.073
+- progress: 1020.0 s, 319.2 tps, lat 25.061 ms stddev 11.345
+- progress: 1080.0 s, 315.5 tps, lat 25.356 ms stddev 12.416
+- progress: 1140.0 s, 319.6 tps, lat 25.028 ms stddev 11.546
+- progress: 1200.0 s, 320.5 tps, lat 24.958 ms stddev 11.466
+- progress: 1260.0 s, 316.2 tps, lat 25.300 ms stddev 12.421
+- progress: 1320.0 s, 310.1 tps, lat 25.800 ms stddev 12.778
+- progress: 1380.0 s, 315.6 tps, lat 25.347 ms stddev 12.928
+- progress: 1440.0 s, 319.8 tps, lat 25.017 ms stddev 11.824
+- progress: 1500.0 s, 318.7 tps, lat 25.101 ms stddev 11.981
+- progress: 1560.0 s, 319.6 tps, lat 25.034 ms stddev 11.662
+- progress: 1620.0 s, 318.3 tps, lat 25.136 ms stddev 11.869
+- progress: 1680.0 s, 312.2 tps, lat 25.628 ms stddev 12.864
+- progress: 1740.0 s, 319.3 tps, lat 25.056 ms stddev 11.648
+- progress: 1800.0 s, 320.7 tps, lat 24.944 ms stddev 11.111
+- progress: 1860.0 s, 318.9 tps, lat 25.088 ms stddev 12.100
+- progress: 1920.0 s, 307.4 tps, lat 26.027 ms stddev 13.581
+- progress: 1980.0 s, 311.8 tps, lat 25.660 ms stddev 13.071
+- progress: 2040.0 s, 320.7 tps, lat 24.948 ms stddev 11.443
+- progress: 2100.0 s, 316.0 tps, lat 25.310 ms stddev 12.190
+- progress: 2160.0 s, 313.1 tps, lat 25.553 ms stddev 13.190
+- progress: 2220.0 s, 317.6 tps, lat 25.189 ms stddev 11.736
+- progress: 2280.0 s, 317.2 tps, lat 25.221 ms stddev 11.810
+- progress: 2340.0 s, 318.0 tps, lat 25.160 ms stddev 11.756
+- progress: 2400.0 s, 318.4 tps, lat 25.119 ms stddev 12.211
+- progress: 2460.0 s, 318.6 tps, lat 25.114 ms stddev 12.020
+- progress: 2520.0 s, 313.3 tps, lat 25.532 ms stddev 12.576
+- progress: 2580.0 s, 317.4 tps, lat 25.202 ms stddev 11.797
+- progress: 2640.0 s, 318.4 tps, lat 25.126 ms stddev 12.443
+- progress: 2700.0 s, 320.0 tps, lat 24.995 ms stddev 11.991
+- progress: 2760.0 s, 316.4 tps, lat 25.290 ms stddev 12.136
+- progress: 2820.0 s, 317.8 tps, lat 25.169 ms stddev 12.303
+- progress: 2880.0 s, 315.3 tps, lat 25.373 ms stddev 12.118
+- progress: 2940.0 s, 317.7 tps, lat 25.183 ms stddev 12.207
+- progress: 3000.0 s, 318.2 tps, lat 25.137 ms stddev 11.679
+- progress: 3060.0 s, 318.5 tps, lat 25.115 ms stddev 12.192
+- progress: 3120.0 s, 316.3 tps, lat 25.291 ms stddev 12.469
+- progress: 3180.0 s, 317.8 tps, lat 25.169 ms stddev 12.084
+- progress: 3240.0 s, 319.5 tps, lat 25.042 ms stddev 11.717
+- progress: 3300.0 s, 319.5 tps, lat 25.041 ms stddev 11.439
+- progress: 3360.0 s, 306.9 tps, lat 26.066 ms stddev 14.193
+- progress: 3420.0 s, 318.8 tps, lat 25.090 ms stddev 12.162
+- progress: 3480.0 s, 310.5 tps, lat 25.760 ms stddev 13.414
+- progress: 3540.0 s, 317.6 tps, lat 25.191 ms stddev 12.450
+- progress: 3600.0 s, 300.6 tps, lat 26.607 ms stddev 14.125
+- transaction type: <builtin: TPC-B (sort of)>
+- scaling factor: 1
+- query mode: simple
+- number of clients: 8
+- number of threads: 1
+- duration: 3600 s
+- number of transactions actually processed: 1270429
+- latency average = 22.669 ms
+- latency stddev = 12.720 ms
+- initial connection time = 17.284 ms
+- tps = 352.895143 (without initial connection time) 
+10. средний tps уменьшился, но стал более-менее ровным на протяжении часа.
