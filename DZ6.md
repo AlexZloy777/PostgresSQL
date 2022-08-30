@@ -205,62 +205,69 @@ ORDER BY pid, virtualxid, transactionid::text::bigint;
 | 15 | отношение                 | messages_pkey |                        |            |               | 5/5                | 6711 | session3 | RowExclusiveLock | блокировка получена  | блокировка получена по короткому пути                 |
 
 Примечание из этой таблицы:
--каждый сеанс держит эксклюзивные (exclusive lock) блокировки на номера своих транзакций (transactionid - 2, 7, 12 строки) и виртуальной транзакции (virtualxid - 1, 5, 11 - строки)
+- каждый сеанс держит эксклюзивные (exclusive lock) блокировки на номера своих транзакций (transactionid - 2, 7, 12 строки) и виртуальной транзакции (virtualxid - 1, 5, 11 - строки)
 - первый сеанс захватил эксклюзивную блокировку строки для ключа и самой строки, строки 3, 4
 - оставшиеся два запроса хоть и ожидают блокировки так же повесили row exclusive lock на ключ и строку, строки - 9, 10 и 14, 15
 - так же оставшиеся два сеанса повесили экслоюзивную блокировку на сам кортеж, т.к. хотят обновить именно его, а он уже обновлен в первом сеансе, строки 8 и 13
 - оставшаяся блокировка share lock в 6 строке вызванна тем что мы пытаемся обновить ту же строку что и в первом сеансе у которого уже захвачен row exclusive lock
 
-6. Воспроизведите взаимоблокировку трех транзакций. Можно ли разобраться в ситуации постфактум, изучая журнал сообщений?
-подготовка
+6. Воспроизвожу взаимоблокировку трех транзакций. Можно ли разобраться в ситуации постфактум, изучая журнал сообщений?
+6.1. Удаляю предидущую таблицу
+- sudo -u postgres psql -c "drop table messages"
+- DROP TABLE
+6.2. Создаю новую таблицу
+- sudo -u postgres psql -c "create table messages(id int primary key,message text)"
+- CREATE TABLE
+- sudo -u postgres psql -c "insert into messages values (1, 'one')"
+- INSERT 0 1
+- sudo -u postgres psql -c "insert into messages values (2, 'two')"
+- INSERT 0 1
+- sudo -u postgres psql -c "insert into messages values (3, 'three')"
+- INSERT 0 1
 
-sudo -u postgres psql -c "drop table messages"
-sudo -u postgres psql -c "create table messages(id int primary key,message text)"
-sudo -u postgres psql -c "insert into messages values (1, 'one')"
-sudo -u postgres psql -c "insert into messages values (2, 'two')"
-sudo -u postgres psql -c "insert into messages values (3, 'three')"
-эксперимент
+6.3. Таблица с шагами эксперимента
 
-step	session 1 (pid: 6946, tid: 538)	session 2 (pid: 6956, tid: 539)	session 3 (pid: 6966, tid: 540)
-1	begin;	begin;	begin;
-2	SELECT pg_backend_pid() as pid, txid_current() as tid;	SELECT pg_backend_pid() as pid, txid_current() as tid;	SELECT pg_backend_pid() as pid, txid_current() as tid;
-3	SELECT message FROM messages WHERE id = 1 FOR UPDATE;		
-4		SELECT message FROM messages WHERE id = 2 FOR UPDATE;	
-5			SELECT message FROM messages WHERE id = 3 FOR UPDATE;
-6	UPDATE messages SET message = 'message from session 1' WHERE id = 2;		
-7		UPDATE messages SET message = 'message from session 2' WHERE id = 3;	
-8			UPDATE messages SET message = 'message from session 3' WHERE id = 1;
-результаты
+| step | session 1 (pid: 6531, tid: 769)                                        | session 2 (pid: 6707, tid: 770)                                        | session 3 (pid: 6711, tid: 771)                                        |
+| ---- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 1    | `begin;`                                                               | `begin;`                                                               | `begin;`                                                               |
+| 2    | `SELECT pg_backend_pid() as pid, txid_current() as tid;`               | `SELECT pg_backend_pid() as pid, txid_current() as tid;`               | `SELECT pg_backend_pid() as pid, txid_current() as tid;`               |
+| 3    | `SELECT message FROM messages WHERE id = 1 FOR UPDATE;`                |                                                                        |                                                                        |
+| 4    |                                                                        | `SELECT message FROM messages WHERE id = 2 FOR UPDATE;`                |                                                                        |
+| 5    |                                                                        |                                                                        | `SELECT message FROM messages WHERE id = 3 FOR UPDATE;`                |
+| 6    | `UPDATE messages SET message = 'message from session 1' WHERE id = 2;` |                                                                        |                                                                        |
+| 7    |                                                                        | `UPDATE messages SET message = 'message from session 2' WHERE id = 3;` |                                                                        |
+| 8    |                                                                        |                                                                        | `UPDATE messages SET message = 'message from session 3' WHERE id = 1;` |
 
-первый сеанс висит на апдейте
-второй сеанс обновил строку
-третий сеанс вылетел с ошибкой
-ERROR:  deadlock detected
-DETAIL:  Process 6966 waits for ShareLock on transaction 538; blocked by process 6946.
-Process 6946 waits for ShareLock on transaction 539; blocked by process 6956.
-Process 6956 waits for ShareLock on transaction 540; blocked by process 6966.
-HINT:  See server log for query details.
-CONTEXT:  while updating tuple (0,1) in relation "messages"
-лог
-
-2021-05-30 08:56:27.777 UTC [6966] postgres@postgres ERROR:  deadlock detected
-2021-05-30 08:56:27.777 UTC [6966] postgres@postgres DETAIL:  
-        Process 6966 waits for ShareLock on transaction 538; blocked by process 6946.
-        Process 6946 waits for ShareLock on transaction 539; blocked by process 6956.
-        Process 6956 waits for ShareLock on transaction 540; blocked by process 6966.
-        Process 6966: UPDATE messages SET message = 'message from session 3' WHERE id = 1;
-        Process 6946: UPDATE messages SET message = 'message from session 1' WHERE id = 2;
-        Process 6956: UPDATE messages SET message = 'message from session 2' WHERE id = 3;
-2021-05-30 08:56:27.777 UTC [6966] postgres@postgres HINT:  See server log for query details.
-2021-05-30 08:56:27.777 UTC [6966] postgres@postgres CONTEXT:  while updating tuple (0,1) in relation "messages"
-2021-05-30 08:56:27.777 UTC [6966] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 3' WHERE id = 1;
-В логе мы видим что процесс № 6966 (третий сеанс) споймал deadlock
-
+6.4. Результаты эксперимента
+- первый сеанс висит на апдейте
+- второй сеанс обновил строку
+- третий сеанс вылетел с ошибкой
+-        ERROR:  deadlock detected
+-        DETAIL:  Process 6711 waits for ShareLock on transaction 769; blocked by process 7361.
+-        Process 7361 waits for ShareLock on transaction 770; blocked by process 6707.
+-        Process 6707 waits for ShareLock on transaction 771; blocked by process 6711.
+-        HINT:  See server log for query details.
+-        CONTEXT:  while updating tuple (0,5) in relation "messages"
+6.5. Смотрим лог
+```log
+2022-08-30 07:54:45.767 UTC [6711] postgres@postgres ERROR:  deadlock detected
+2022-08-30 07:54:45.767 UTC [6711] postgres@postgres DETAIL:  Process 6711 waits for ShareLock on transaction 769; blocked by process 7361.
+        Process 7361 waits for ShareLock on transaction 770; blocked by process 6707.
+        Process 6707 waits for ShareLock on transaction 771; blocked by process 6711.
+        Process 6711: UPDATE messages SET message = 'message from session 3' WHERE id = 1;
+        Process 7361: UPDATE messages SET message = 'message from session 1' WHERE id = 2;
+        Process 6707: UPDATE messages SET message = 'message from session 2' WHERE id = 3;
+2022-08-30 07:54:45.767 UTC [6711] postgres@postgres HINT:  See server log for query details.
+2022-08-30 07:54:45.767 UTC [6711] postgres@postgres CONTEXT:  while updating tuple (0,5) in relation "messages"
+2022-08-30 07:54:45.767 UTC [6711] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 3' WHERE id = 1;
+2022-08-30 07:54:45.767 UTC [6707] postgres@postgres LOG:  process 6707 acquired ShareLock on transaction 771 after 14097.980 ms
+```
+- В логе мы видим что процесс № 6711 (третий сеанс) поймал deadlock
 Детали нам говорят о том что:
+- третий сенас ждал первого и второго, сеанс два при этом ждал третьего (кольцо)
+- далее приведены запросы, но из-за того что блокировку мы вызвали ранее по ним можно только сказать что мы пытались обновить, но не причину блокировки
 
-третий сенас ждал первого и второго, сеанс два при этом ждал третьего (кольцо)
-далее приведены запросы, но из-за того что блокировку мы вызвали ранее по ним можно только сказать что мы пытались обновить, но не причину блокировки
-Могут ли две транзакции, выполняющие единственную команду UPDATE одной и той же таблицы (без where), заблокировать друг друга?
+7. Могут ли две транзакции, выполняющие единственную команду UPDATE одной и той же таблицы (без where), заблокировать друг друга?
 подготовка
 
 sudo -u postgres psql -c "drop table test"
