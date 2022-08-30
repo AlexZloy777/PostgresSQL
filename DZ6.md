@@ -49,7 +49,7 @@
 - ---+------------------------
 -  2 | hello world
 -  1 | message from session 2
--(2 rows)
+- (2 rows)
 
 4.5. Первая сессия оборвалась с ошибкой
 - ERROR:  deadlock detected
@@ -76,24 +76,40 @@
 - 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 2' WHERE id = 1;
 
 5. Смоделируйте ситуацию обновления одной и той же строки тремя командами UPDATE в разных сеансах. Изучите возникшие блокировки в представлении pg_locks и убедитесь, что все они понятны. Пришлите список блокировок и объясните, что значит каждая.
-подготовка
 
-sudo -u postgres psql -c "drop table messages"
-sudo -u postgres psql -c "create table messages(id int primary key,message text)"
-sudo -u postgres psql -c "insert into messages values (1, 'hello')"
-эксперимент
+5.1. Удаляю старую таблицу
+- postgres@postgres:~$ sudo -u postgres psql -c "drop table messages"
+- DROP TABLE
 
-в каждом терминале:
+5.2. Создаю новую таблицу с главным ключем
+- postgres@postgres:~$ sudo -u postgres psql -c "create table messages(id int primary key,message text)"
+- CREATE TABLE
 
+5.3. Вставляю строку, которую буду менять
+- postgres@postgres:~$ sudo -u postgres psql -c "insert into messages values (1, 'hello')"
+- INSERT 0 1
+
+5.4. 1 подключение
 BEGIN;
 SELECT pg_backend_pid() as pid, txid_current() as tid;
 UPDATE messages SET message = 'message from session 1' WHERE id = 1;
-примечание: каждая сессия вставляет свое сообщение
 
-сеанс	pid	tid
-1	6261	530
-2	6274	531
-3	6284	532
+5.5. 2 подключение
+BEGIN;
+SELECT pg_backend_pid() as pid, txid_current() as tid;
+UPDATE messages SET message = 'message from session 2' WHERE id = 1;
+
+5.6. 3 подключение
+BEGIN;
+SELECT pg_backend_pid() as pid, txid_current() as tid;
+UPDATE messages SET message = 'message from session 3' WHERE id = 1;
+
+5.7. 
+| сеанс | pid  | tid |
+| ----- | ---- | --- |
+|     1 | 6531 | 752 |
+|     2 | 6707 | 753 |
+|     3 | 6711 | 754 |
 блокировки
 
 SELECT blocked_locks.pid     AS blocked_pid,
@@ -121,10 +137,12 @@ SELECT blocked_locks.pid     AS blocked_pid,
  
     JOIN pg_catalog.pg_stat_activity blocking_activity ON blocking_activity.pid = blocking_locks.pid
    WHERE NOT blocked_locks.GRANTED;
-blocked_pid	blocked_user	blocking_pid	blocking_user	blocked_statement	current_statement_in_blocking_process	blocked_application	blocking_application
-6274	postgres	6261	postgres	UPDATE messages SET message = 'message from session 2' WHERE id = 1;	UPDATE messages SET message = 'message from session 1' WHERE id = 1;	psql	psql
-6284	postgres	6274	postgres	UPDATE messages SET message = 'message from session 3' WHERE id = 1;	UPDATE messages SET message = 'message from session 2' WHERE id = 1;	psql	psql
-6261 блокирует 6274, а та в свою очередь - 6284
+```
+
+| blocked_pid | blocked_user | blocking_pid | blocking_user |                          blocked_statement                           |                current_statement_in_blocking_process                 | blocked_application | blocking_application |
+| ----------- | ------------ | ------------ | ------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------- | -------------------- |
+|        6274 | postgres     |         6261 | postgres      | UPDATE messages SET message = 'message from session 2' WHERE id = 1; | UPDATE messages SET message = 'message from session 1' WHERE id = 1; | psql                | psql                 |
+|        6284 | postgres     |         6274 | postgres      | UPDATE messages SET message = 'message from session 3' WHERE id = 1; | UPDATE messages SET message = 'message from session 2' WHERE id = 1; | psql                | psql                 |
 
 SELECT 
 row_number() over(ORDER BY pid, virtualxid, transactionid::text::bigint) as n,
