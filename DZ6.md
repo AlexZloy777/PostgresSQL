@@ -46,11 +46,12 @@
 - sudo -u postgres psql -c "select * from messages"
 - postgres=# select * from messages;
 
-| id |        message|
+| id |        message         |
 | ---+------------------------|
-|  2 | hello world|
-|  1 | message from session 2|
-| (2 rows)|
+|  2 | hello world            |
+|  1 | message from session 2 |
+| (2 rows)                    |
+
 
 4.5. Первая сессия оборвалась с ошибкой
 - ERROR:  deadlock detected
