@@ -229,18 +229,21 @@ ORDER BY pid, virtualxid, transactionid::text::bigint;
 
 6. Воспроизвожу взаимоблокировку трех транзакций. Можно ли разобраться в ситуации постфактум, изучая журнал сообщений?
 6.1. Удаляю предидущую таблицу
-- sudo -u postgres psql -c "drop table messages"
-- DROP TABLE
+```bash
+sudo -u postgres psql -c "drop table messages"
+DROP TABLE
+```
 6.2. Создаю новую таблицу
-- sudo -u postgres psql -c "create table messages(id int primary key,message text)"
-- CREATE TABLE
-- sudo -u postgres psql -c "insert into messages values (1, 'one')"
-- INSERT 0 1
-- sudo -u postgres psql -c "insert into messages values (2, 'two')"
-- INSERT 0 1
-- sudo -u postgres psql -c "insert into messages values (3, 'three')"
-- INSERT 0 1
-
+```bash
+sudo -u postgres psql -c "create table messages(id int primary key,message text)"
+CREATE TABLE
+sudo -u postgres psql -c "insert into messages values (1, 'one')"
+INSERT 0 1
+sudo -u postgres psql -c "insert into messages values (2, 'two')"
+INSERT 0 1
+sudo -u postgres psql -c "insert into messages values (3, 'three')"
+INSERT 0 1
+```
 6.3. Таблица с шагами эксперимента
 
 | step | session 1 (pid: 6531, tid: 769)                                        | session 2 (pid: 6707, tid: 770)                                        | session 3 (pid: 6711, tid: 771)                                        |
@@ -265,7 +268,7 @@ ERROR:  deadlock detected
         Process 6707 waits for ShareLock on transaction 771; blocked by process 6711.
         HINT:  See server log for query details.
         CONTEXT:  while updating tuple (0,5) in relation "messages"
-       ```
+```
 6.5. Смотрим лог
 ```log
 2022-08-30 07:54:45.767 UTC [6711] postgres@postgres ERROR:  deadlock detected
