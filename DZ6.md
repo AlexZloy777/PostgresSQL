@@ -1,7 +1,7 @@
 1. Создал в YC инстанс на Ubuntu c 2 CPU 4 Gb Ram и standard disk 15GB
 2. Установил на него PostgreSQL 14 с дефолтными настройками
 3. Настроил сервер так, чтобы в журнал сообщений сбрасывалась информация о блокировках, удерживаемых более 200 миллисекунд. 
-```sql
+```bash
 postgres=# ALTER SYSTEM SET log_lock_waits = on;
 ALTER SYSTEM
 postgres=# ALTER SYSTEM SET deadlock_timeout TO 200;
@@ -12,7 +12,7 @@ postgres=# select pg_reload_conf();
 |----------------|
 | t              |
 | (1 row)        |
-```sql
+```bash
 postgres=# show deadlock_timeout;
 ```
 | deadlock_timeout |
@@ -22,7 +22,7 @@ postgres=# show deadlock_timeout;
 4. Воспроизвожу ситуацию, при которой в журнале появятся такие сообщения.
 
 4.1. Создал таблицу
-```sql
+```bash
 postgres=# create table messages(id int primary key,message text);
 CREATE TABLE
 postgres=# insert into messages values (1, 'hello world');
@@ -50,7 +50,7 @@ COMMIT;
 EOF
 ```
 4.4. Результат
-```sql
+```bash
 sudo -u postgres psql -c "select * from messages"
 postgres=# select * from messages;
 ```
@@ -71,7 +71,7 @@ ROLLBACK
 ```
 4.6. Вторая при этом успешно завершилась
 
-4.7.В логе при этом
+4.7. В логе при этом
 ```log
 cpostgres@postgres:~$ cat /var/log/postgresql/postgresql-14-main.log | grep "deadlock detected" -A 10
 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres ERROR:  deadlock detected
@@ -89,32 +89,38 @@ cpostgres@postgres:~$ cat /var/log/postgresql/postgresql-14-main.log | grep "dea
 5. Смоделируйте ситуацию обновления одной и той же строки тремя командами UPDATE в разных сеансах. Изучите возникшие блокировки в представлении pg_locks и убедитесь, что все они понятны. Пришлите список блокировок и объясните, что значит каждая.
 
 5.1. Удаляю старую таблицу
-- postgres@postgres:~$ sudo -u postgres psql -c "drop table messages"
-- DROP TABLE
-
+```bash
+postgres@postgres:~$ sudo -u postgres psql -c "drop table messages"
+DROP TABLE
+```
 5.2. Создаю новую таблицу с главным ключем
-- postgres@postgres:~$ sudo -u postgres psql -c "create table messages(id int primary key,message text)"
-- CREATE TABLE
-
+```bash
+postgres@postgres:~$ sudo -u postgres psql -c "create table messages(id int primary key,message text)"
+CREATE TABLE
+```
 5.3. Вставляю строку, которую буду менять
-- postgres@postgres:~$ sudo -u postgres psql -c "insert into messages values (1, 'hello')"
+```bash
+postgres@postgres:~$ sudo -u postgres psql -c "insert into messages values (1, 'hello')"
 - INSERT 0 1
-
-5.4. 1 подключение
+```
+5.4. подключение 1
+```sql
 BEGIN;
 SELECT pg_backend_pid() as pid, txid_current() as tid;
 UPDATE messages SET message = 'message from session 1' WHERE id = 1;
-
-5.5. 2 подключение
+```
+5.5. подключение 1
+```sql
 BEGIN;
 SELECT pg_backend_pid() as pid, txid_current() as tid;
 UPDATE messages SET message = 'message from session 2' WHERE id = 1;
-
-5.6. 3 подключение
+```
+5.6. подключение 3
+```sql
 BEGIN;
 SELECT pg_backend_pid() as pid, txid_current() as tid;
 UPDATE messages SET message = 'message from session 3' WHERE id = 1;
-
+```
 5.7. Сочетание заблокированной и блокирующей активности
 | сеанс | pid  | tid |
 | ----- | ---- | --- |
@@ -122,7 +128,7 @@ UPDATE messages SET message = 'message from session 3' WHERE id = 1;
 |     2 | 6707 | 758 |
 |     3 | 6711 | 759 |
 
-**[блокировки](https://wiki.postgresql.org/wiki/Lock_Monitoring)**
+**[блокировки] (https://wiki.postgresql.org/wiki/Lock_Monitoring)**
 
 ```sql
 
@@ -252,12 +258,14 @@ ORDER BY pid, virtualxid, transactionid::text::bigint;
 - первый сеанс висит на апдейте
 - второй сеанс обновил строку
 - третий сеанс вылетел с ошибкой
--        ERROR:  deadlock detected
--        DETAIL:  Process 6711 waits for ShareLock on transaction 769; blocked by process 7361.
--        Process 7361 waits for ShareLock on transaction 770; blocked by process 6707.
--        Process 6707 waits for ShareLock on transaction 771; blocked by process 6711.
--        HINT:  See server log for query details.
--        CONTEXT:  while updating tuple (0,5) in relation "messages"
+```log
+ERROR:  deadlock detected
+        DETAIL:  Process 6711 waits for ShareLock on transaction 769; blocked by process 7361.
+        Process 7361 waits for ShareLock on transaction 770; blocked by process 6707.
+        Process 6707 waits for ShareLock on transaction 771; blocked by process 6711.
+        HINT:  See server log for query details.
+        CONTEXT:  while updating tuple (0,5) in relation "messages"
+       ```
 6.5. Смотрим лог
 ```log
 2022-08-30 07:54:45.767 UTC [6711] postgres@postgres ERROR:  deadlock detected
