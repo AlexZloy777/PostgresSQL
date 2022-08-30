@@ -174,30 +174,31 @@ CASE WHEN page IS NOT NULL AND tuple IS NOT NULL THEN (select message from messa
 virtualxid, transactionid, virtualtransaction, 
 
 pid, 
-CASE WHEN pid = 6261 THEN 'session1' WHEN pid = 6274 THEN 'session2' WHEN pid = 6284 THEN 'session3' END AS session,
+CASE WHEN pid = 6531 THEN 'session1' WHEN pid = 6707 THEN 'session2' WHEN pid = 6711 THEN 'session3' END AS session,
 
 mode, 
 
 CASE WHEN granted = true THEN 'блокировка получена' ELSE 'блокировка ожидается' END AS granted,
 CASE WHEN fastpath = true THEN 'блокировка получена по короткому пути' ELSE 'блокировка получена через основную таблицу блокировок' END AS fastpath 
-FROM pg_locks WHERE pid in (6261, 6274,6284) 
+FROM pg_locks WHERE pid in (6531, 6707, 6711) 
 ORDER BY pid, virtualxid, transactionid::text::bigint;
-n	locktype	relation	row	virtualxid	transactionid	virtualtransaction	pid	session	mode	granted	fastpath
-1	виртуальный идентификатор			4/202		4/202	6261	session1	ExclusiveLock	блокировка получена	блокировка получена по короткому пути
-2	идентификатор транзакции				530	4/202	6261	session1	ExclusiveLock	блокировка получена	блокировка получена через основную таблицу блокировок
-3	отношение	messages_pkey				4/202	6261	session1	RowExclusiveLock	блокировка получена	блокировка получена по короткому пути
-4	отношение	messages				4/202	6261	session1	RowExclusiveLock	блокировка получена	блокировка получена по короткому пути
-5	виртуальный идентификатор			5/22		5/22	6274	session2	ExclusiveLock	блокировка получена	блокировка получена по короткому пути
-6	идентификатор транзакции				530	5/22	6274	session2	ShareLock	блокировка ожидается	блокировка получена через основную таблицу блокировок
-7	идентификатор транзакции				531	5/22	6274	session2	ExclusiveLock	блокировка получена	блокировка получена через основную таблицу блокировок
-8	кортеж	messages	hello			5/22	6274	session2	ExclusiveLock	блокировка получена	блокировка получена через основную таблицу блокировок
-9	отношение	messages_pkey				5/22	6274	session2	RowExclusiveLock	блокировка получена	блокировка получена по короткому пути
-10	отношение	messages				5/22	6274	session2	RowExclusiveLock	блокировка получена	блокировка получена по короткому пути
-11	виртуальный идентификатор			6/6		6/6	6284	session3	ExclusiveLock	блокировка получена	блокировка получена по короткому пути
-12	идентификатор транзакции				532	6/6	6284	session3	ExclusiveLock	блокировка получена	блокировка получена через основную таблицу блокировок
-13	кортеж	messages	hello			6/6	6284	session3	ExclusiveLock	блокировка ожидается	блокировка получена через основную таблицу блокировок
-14	отношение	messages				6/6	6284	session3	RowExclusiveLock	блокировка получена	блокировка получена по короткому пути
-15	отношение	messages_pkey				6/6	6284	session3	RowExclusiveLock	блокировка получена	блокировка получена по короткому пути
+
+|n  |         locktype          |   relation    |  row  | virtualxid | transactionid | virtualtransaction | pid  | session  |       mode       |       granted        |                       fastpath
+|----+---------------------------+---------------+-------+------------+---------------+--------------------+------+----------+------------------+----------------------+-------------------------------------------------------
+|  1 | виртуальный идентификатор |               |       | 3/92       |               | 3/92               | 6531 | session1 | ExclusiveLock    | блокировка получена  | блокировка получена по короткому пути
+|  2 | отношение                 | pg_locks      |       |            |               | 3/92               | 6531 | session1 | AccessShareLock  | блокировка получена  | блокировка получена по короткому пути
+|  3 | отношение                 | messages      |       |            |               | 3/92               | 6531 | session1 | AccessShareLock  | блокировка получена  | блокировка получена по короткому пути
+|  4 | отношение                 | messages_pkey |       |            |               | 3/92               | 6531 | session1 | AccessShareLock  | блокировка получена  | блокировка получена по короткому пути
+|  5 | виртуальный идентификатор |               |       | 4/375      |               | 4/375              | 6707 | session2 | ExclusiveLock    | блокировка получена  | блокировка получена по короткому пути
+|  6 | идентификатор транзакции  |               |       |            |           753 | 4/375              | 6707 | session2 | ExclusiveLock    | блокировка получена  | блокировка получена через основную таблицу блокировок
+|  7 | отношение                 | messages      |       |            |               | 4/375              | 6707 | session2 | RowExclusiveLock | блокировка получена  | блокировка получена по короткому пути
+|  8 | отношение                 | messages_pkey |       |            |               | 4/375              | 6707 | session2 | RowExclusiveLock | блокировка получена  | блокировка получена по короткому пути
+|  9 | виртуальный идентификатор |               |       | 5/4        |               | 5/4                | 6711 | session3 | ExclusiveLock    | блокировка получена  | блокировка получена по короткому пути
+| 10 | идентификатор транзакции  |               |       |            |           753 | 5/4                | 6711 | session3 | ShareLock        | блокировка ожидается | блокировка получена через основную таблицу блокировок
+| 11 | идентификатор транзакции  |               |       |            |           754 | 5/4                | 6711 | session3 | ExclusiveLock    | блокировка получена  | блокировка получена через основную таблицу блокировок
+| 12 | кортеж                    | messages      | hello |            |               | 5/4                | 6711 | session3 | ExclusiveLock    | блокировка получена  | блокировка получена через основную таблицу блокировок
+| 13 | отношение                 | messages      |       |            |               | 5/4                | 6711 | session3 | RowExclusiveLock | блокировка получена  | блокировка получена по короткому пути
+| 14 | отношение                 | messages_pkey |       |            |               | 5/4                | 6711 | session3 | RowExclusiveLock | блокировка получена  | блокировка получена по короткому пути
 Примечание:
 
 каждый сеанс держит эксклюзивные (exclusive lock) блокировки на номера своих транзакций (transactionid - 2, 7, 12 строки) и виртуальной транзакции (virtualxid - 1, 5, 11 - строки)
