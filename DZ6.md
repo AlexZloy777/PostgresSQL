@@ -1,20 +1,24 @@
 1. Создал в YC инстанс на Ubuntu c 2 CPU 4 Gb Ram и standard disk 15GB
 2. Установил на него PostgreSQL 14 с дефолтными настройками
 3. Настроил сервер так, чтобы в журнал сообщений сбрасывалась информация о блокировках, удерживаемых более 200 миллисекунд. 
-- postgres=# ALTER SYSTEM SET log_lock_waits = on;
-- ALTER SYSTEM
-- postgres=# ALTER SYSTEM SET deadlock_timeout TO 200;
-- ALTER SYSTEM
-- postgres=# select pg_reload_conf();
-- pg_reload_conf
-----------------
-- t
-- (1 row)
-- postgres=# show deadlock_timeout;
-- deadlock_timeout
-------------------
-- 200ms
-- (1 row)
+```sql
+postgres=# ALTER SYSTEM SET log_lock_waits = on;
+ALTER SYSTEM
+postgres=# ALTER SYSTEM SET deadlock_timeout TO 200;
+ALTER SYSTEM
+postgres=# select pg_reload_conf();
+pg_reload_conf
+```
+|----------------|
+| t              |
+| (1 row)        |
+```sql
+postgres=# show deadlock_timeout;
+```
+| deadlock_timeout |
+|------------------|
+| 200ms            |
+| (1 row)          |
 4. Воспроизвожу ситуацию, при которой в журнале появятся такие сообщения.
 
 4.1. Создал таблицу
