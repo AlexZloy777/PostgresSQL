@@ -236,7 +236,7 @@ DROP TABLE
 6.2. Создаю новую таблицу
 ```bash
 sudo -u postgres psql -c "create table messages(id int primary key,message text)"
-CREATE TABLE
+CREATE TABLECREATE TABLE
 sudo -u postgres psql -c "insert into messages values (1, 'one')"
 INSERT 0 1
 sudo -u postgres psql -c "insert into messages values (2, 'two')"
@@ -289,31 +289,40 @@ ERROR:  deadlock detected
 - далее приведены запросы, но из-за того что блокировку мы вызвали ранее по ним можно только сказать что мы пытались обновить, но не причину блокировки
 
 7. Могут ли две транзакции, выполняющие единственную команду UPDATE одной и той же таблицы (без where), заблокировать друг друга?
-подготовка
-
-sudo -u postgres psql -c "drop table test"
+7.1. Удаляю старую таблицу
+```bash
+sudo -u postgres psql -c "drop table messages"
+```
+7.2. Создаю таблицу для эксперимента
+```bash
 sudo -u postgres psql -c "create table test(id integer primary key generated always as identity, n float)"
+CREATE TABLE
 sudo -u postgres psql -c "insert into test(n) select random() from generate_series(1,1000000)"
-session 1
-
+INSERT 0 1000000
+```
+7.3. Подключение 1
+```sql
 sudo -u postgres psql << EOF
 BEGIN ISOLATION LEVEL REPEATABLE READ;
 UPDATE test SET n = (select id from test order by id asc limit 1 for update);
 COMMIT;
 EOF
-session 2
-
+```
+7.4. Подключение 2
+```sql
 sudo -u postgres psql << EOF
 BEGIN ISOLATION LEVEL REPEATABLE READ;
 UPDATE test SET n = (select id from test order by id desc limit 1 for update);
 COMMIT;
 EOF
-В моем случае первый сеанс отвалился с ошибкой:
-
+```
+7.5. В моем случае первый сеанс отвалился с ошибкой:
+```log
 ERROR:  deadlock detected
-DETAIL:  Process 8056 waits for ShareLock on transaction 608; blocked by process 8066.
-Process 8066 waits for ShareLock on transaction 607; blocked by process 8056.
+DETAIL:  Process 7533 waits for ShareLock on transaction 777; blocked by process 7537.
+Process 7537 waits for ShareLock on transaction 776; blocked by process 7533.
 HINT:  See server log for query details.
-CONTEXT:  while updating tuple (15554,62) in relation "test"
+CONTEXT:  while updating tuple (5405,75) in relation "test"
 ROLLBACK
-Примечание: мы забираем id for update в первом сеансе отсортированные во возрастанию, а во втором по убыванию из-за чего по началу вроде как все ок, но когда два запроса "пересекаются" начинаются проблемы
+```
+7.6. Примечание: мы забираем id for update в первом сеансе отсортированные во возрастанию, а во втором по убыванию из-за чего по началу вроде как все ок, но когда два запроса "пересекаются" начинаются проблемы
