@@ -45,11 +45,11 @@
 4.4. Результат
 - sudo -u postgres psql -c "select * from messages"
 - postgres=# select * from messages;
-- id |        message
-- ---+------------------------
--  2 | hello world
--  1 | message from session 2
-- (2 rows)
+| id |        message|
+| ---+------------------------|
+|  2 | hello world|
+|  1 | message from session 2|
+| (2 rows)|
 
 4.5. Первая сессия оборвалась с ошибкой
 - ERROR:  deadlock detected
@@ -184,6 +184,7 @@ CASE WHEN fastpath = true THEN 'блокировка получена по ко�
 FROM pg_locks WHERE pid in (6531, 6707, 6711) 
 ORDER BY pid, virtualxid, transactionid::text::bigint;
 ```
+
 | n  |         locktype          |   relation    |          row           | virtualxid | transactionid | virtualtransaction | pid  | session  |       mode       |       granted        |                       fastpath                        |
 |----+---------------------------+---------------+------------------------+------------+---------------+--------------------+------+----------+------------------+----------------------+-------------------------------------------------------|
 |  1 | виртуальный идентификатор |               |                        | 3/97       |               | 3/97               | 6531 | session1 | ExclusiveLock    | блокировка получена  | блокировка получена по короткому пути                 |
