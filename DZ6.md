@@ -50,7 +50,7 @@ COMMIT;
 EOF
 ```
 4.4. Результат
-``sql
+```sql
 sudo -u postgres psql -c "select * from messages"
 postgres=# select * from messages;
 ```
