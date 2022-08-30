@@ -45,6 +45,7 @@
 4.4. Результат
 - sudo -u postgres psql -c "select * from messages"
 - postgres=# select * from messages;
+
 | id |        message|
 | ---+------------------------|
 |  2 | hello world|
