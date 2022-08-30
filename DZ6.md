@@ -52,7 +52,6 @@
 |  1 | message from session 2 |
 | (2 rows)                    |
 
-
 4.5. Первая сессия оборвалась с ошибкой
 - ERROR:  deadlock detected
 - DETAIL:  Process 6441 waits for ShareLock on transaction 745; blocked by process 6445.
