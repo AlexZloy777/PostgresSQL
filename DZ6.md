@@ -16,7 +16,7 @@
 - 200ms
 - (1 row)
 4. Воспроизвожу ситуацию, при которой в журнале появятся такие сообщения.
-4.1.Создал таблицу
+4.1. Создал таблицу
 - postgres=# create table messages(id int primary key,message text);
 - CREATE TABLE
 - postgres=# insert into messages values (1, 'hello world');
