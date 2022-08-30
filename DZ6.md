@@ -63,19 +63,20 @@
 4.6. Вторая при этом успешно завершилась
 
 4.7.В логе при этом
-- cpostgres@postgres:~$ cat /var/log/postgresql/postgresql-14-main.log | grep "deadlock detected" -A 10
-- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres ERROR:  deadlock detected
-- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres DETAIL:  Process 6441 waits for ShareLock on transaction 745; blocked by process 6445.
--         Process 6445 waits for ShareLock on transaction 744; blocked by process 6441.
--         Process 6441: UPDATE messages SET message = 'message from session 1' WHERE id = 2;
--         Process 6445: UPDATE messages SET message = 'message from session 2' WHERE id = 1;
-- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres HINT:  See server log for query details.
-- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres CONTEXT:  while updating tuple (0,9) in relation "messages"
-- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 1' WHERE id = 2;
-- 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres LOG:  process 6445 acquired ShareLock on transaction 744 after 8730.794 ms
-- 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres CONTEXT:  while updating tuple (0,10) in relation "messages"
-- 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 2' WHERE id = 1;
-
+```log
+cpostgres@postgres:~$ cat /var/log/postgresql/postgresql-14-main.log | grep "deadlock detected" -A 10
+2022-08-30 05:07:49.340 UTC [6441] postgres@postgres ERROR:  deadlock detected
+2022-08-30 05:07:49.340 UTC [6441] postgres@postgres DETAIL:  Process 6441 waits for ShareLock on transaction 745; blocked by process 6445.
+         Process 6445 waits for ShareLock on transaction 744; blocked by process 6441.
+         Process 6441: UPDATE messages SET message = 'message from session 1' WHERE id = 2;
+         Process 6445: UPDATE messages SET message = 'message from session 2' WHERE id = 1;
+2022-08-30 05:07:49.340 UTC [6441] postgres@postgres HINT:  See server log for query details.
+2022-08-30 05:07:49.340 UTC [6441] postgres@postgres CONTEXT:  while updating tuple (0,9) in relation "messages"
+2022-08-30 05:07:49.340 UTC [6441] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 1' WHERE id = 2;
+2022-08-30 05:07:49.340 UTC [6445] postgres@postgres LOG:  process 6445 acquired ShareLock on transaction 744 after 8730.794 ms
+2022-08-30 05:07:49.340 UTC [6445] postgres@postgres CONTEXT:  while updating tuple (0,10) in relation "messages"
+2022-08-30 05:07:49.340 UTC [6445] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 2' WHERE id = 1;
+```
 5. Смоделируйте ситуацию обновления одной и той же строки тремя командами UPDATE в разных сеансах. Изучите возникшие блокировки в представлении pg_locks и убедитесь, что все они понятны. Пришлите список блокировок и объясните, что значит каждая.
 
 5.1. Удаляю старую таблицу
