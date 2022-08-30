@@ -104,13 +104,16 @@ BEGIN;
 SELECT pg_backend_pid() as pid, txid_current() as tid;
 UPDATE messages SET message = 'message from session 3' WHERE id = 1;
 
-5.7. 
+5.7. Сочетание заблокированной и блокирующей активности
 | сеанс | pid  | tid |
 | ----- | ---- | --- |
 |     1 | 6531 | 752 |
 |     2 | 6707 | 753 |
 |     3 | 6711 | 754 |
-блокировки
+
+**[блокировки](https://wiki.postgresql.org/wiki/Lock_Monitoring)**
+
+```sql
 
 SELECT blocked_locks.pid     AS blocked_pid,
          blocked_activity.usename  AS blocked_user,
@@ -141,8 +144,12 @@ SELECT blocked_locks.pid     AS blocked_pid,
 
 | blocked_pid | blocked_user | blocking_pid | blocking_user |                          blocked_statement                           |                current_statement_in_blocking_process                 | blocked_application | blocking_application |
 | ----------- | ------------ | ------------ | ------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------- | -------------------- |
-|        6274 | postgres     |         6261 | postgres      | UPDATE messages SET message = 'message from session 2' WHERE id = 1; | UPDATE messages SET message = 'message from session 1' WHERE id = 1; | psql                | psql                 |
-|        6284 | postgres     |         6274 | postgres      | UPDATE messages SET message = 'message from session 3' WHERE id = 1; | UPDATE messages SET message = 'message from session 2' WHERE id = 1; | psql                | psql                 |
+|        6707 | postgres     |         6531 | postgres      | UPDATE messages SET message = 'message from session 2' WHERE id = 1; | UPDATE messages SET message = 'message from session 1' WHERE id = 1; | psql                | psql                 |
+|        6711 | postgres     |         6707 | postgres      | UPDATE messages SET message = 'message from session 3' WHERE id = 1; | UPDATE messages SET message = 'message from session 2' WHERE id = 1; | psql                | psql                 |
+
+`6531` блокирует `6707`, а та в свою очередь - `6711`
+
+**Альтернативный вид тех же данных, который включает имя_приложения
 
 SELECT 
 row_number() over(ORDER BY pid, virtualxid, transactionid::text::bigint) as n,
