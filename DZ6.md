@@ -1,57 +1,73 @@
-Настройте сервер так, чтобы в журнал сообщений сбрасывалась информация о блокировках, удерживаемых более 200 миллисекунд. Воспроизведите ситуацию, при которой в журнале появятся такие сообщения.
-подготовка
-
-sudo -u postgres psql -c "ALTER SYSTEM SET deadlock_timeout TO 200"
-sudo -u postgres psql -c "select pg_reload_conf()"
-sudo -u postgres psql -c "show deadlock_timeout"
-sudo -u postgres psql -c "create table messages(id int primary key,message text)"
-sudo -u postgres psql -c "insert into messages values (1, 'hello')"
-sudo -u postgres psql -c "insert into messages values (2, 'world')"
-session 1
-
-sudo -u postgres psql << EOF
-BEGIN;
-SELECT message FROM messages WHERE id = 1 FOR UPDATE;
-SELECT pg_sleep(10);
-UPDATE messages SET message = 'message from session 1' WHERE id = 2;
-COMMIT;
-EOF
-session 2
-
-sudo -u postgres psql << EOF
-BEGIN;
-SELECT message FROM messages WHERE id = 2 FOR UPDATE;
-UPDATE messages SET message = 'message from session 2' WHERE id = 1;
-COMMIT;
-EOF
-результат
-
-sudo -u postgres psql -c "select * from messages"
-id	message
-2	world
-1	message from session 2
-Первая сессия оборвалась с ошибкой
-
-ERROR:  deadlock detected
-DETAIL:  Process 5777 waits for ShareLock on transaction 516; blocked by process 5787.
-Process 5787 waits for ShareLock on transaction 515; blocked by process 5777.
-HINT:  See server log for query details.
-CONTEXT:  while updating tuple (0,2) in relation "messages"
-ROLLBACK
-Вторая при этом успешно завершилась
-
-В логе при этом
-
-cat /var/log/postgresql/postgresql-12-main.log | grep "deadlock detected" -A 10
-2021-05-30 07:12:01.541 UTC [5777] postgres@postgres ERROR:  deadlock detected
-2021-05-30 07:12:01.541 UTC [5777] postgres@postgres DETAIL:  Process 5777 waits for ShareLock on transaction 516; blocked by process 5787.
-        Process 5787 waits for ShareLock on transaction 515; blocked by process 5777.
-        Process 5777: UPDATE messages SET message = 'message from session 1' WHERE id = 2;
-        Process 5787: UPDATE messages SET message = 'message from session 2' WHERE id = 1;
-2021-05-30 07:12:01.541 UTC [5777] postgres@postgres HINT:  See server log for query details.
-2021-05-30 07:12:01.541 UTC [5777] postgres@postgres CONTEXT:  while updating tuple (0,2) in relation "messages"
-2021-05-30 07:12:01.541 UTC [5777] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 1' WHERE id = 2;
-Смоделируйте ситуацию обновления одной и той же строки тремя командами UPDATE в разных сеансах. Изучите возникшие блокировки в представлении pg_locks и убедитесь, что все они понятны. Пришлите список блокировок и объясните, что значит каждая.
+1. Создал в YC инстанс на Ubuntu c 2 CPU 4 Gb Ram и standard disk 15GB
+2. Установил на него PostgreSQL 14 с дефолтными настройками
+3. Настроил сервер так, чтобы в журнал сообщений сбрасывалась информация о блокировках, удерживаемых более 200 миллисекунд. 
+- postgres=# ALTER SYSTEM SET log_lock_waits = on;
+- ALTER SYSTEM
+- postgres=# ALTER SYSTEM SET deadlock_timeout TO 200;
+- ALTER SYSTEM
+- postgres=# select pg_reload_conf();
+- pg_reload_conf
+----------------
+- t
+- (1 row)
+- postgres=# show deadlock_timeout;
+- deadlock_timeout
+------------------
+- 200ms
+- (1 row)
+4. Воспроизвожу ситуацию, при которой в журнале появятся такие сообщения.
+4.1.Создал таблицу
+- postgres=# create table messages(id int primary key,message text);
+- CREATE TABLE
+- postgres=# insert into messages values (1, 'hello world');
+- INSERT 0 1
+- postgres=# insert into messages values (2, 'мама мыла раму');
+- INSERT 0 1
+4.2. 1 подключение
+- sudo -u postgres psql << EOF
+- BEGIN;
+- SELECT message FROM messages WHERE id = 1 FOR UPDATE;
+- SELECT pg_sleep(10);
+- UPDATE messages SET message = 'message from session 1' WHERE id = 2;
+- COMMIT;
+- EOF
+4.3. 2 подключение
+- sudo -u postgres psql << EOF
+- BEGIN;
+- SELECT message FROM messages WHERE id = 2 FOR UPDATE;
+- UPDATE messages SET message = 'message from session 2' WHERE id = 1;
+- COMMIT;
+- EOF
+4.4. Результат
+- sudo -u postgres psql -c "select * from messages"
+- postgres=# select * from messages;
+- id |        message
+-----+------------------------
+-  2 | hello world
+-  1 | message from session 2
+-(2 rows)
+4.5. Первая сессия оборвалась с ошибкой
+- ERROR:  deadlock detected
+- DETAIL:  Process 6441 waits for ShareLock on transaction 745; blocked by process 6445.
+- Process 6445 waits for ShareLock on transaction 744; blocked by process 6441.
+- HINT:  See server log for query details.
+- CONTEXT:  while updating tuple (0,9) in relation "messages"
+- ROLLBACK
+4.6. Вторая при этом успешно завершилась
+4.7.В логе при этом
+- cpostgres@postgres:~$ cat /var/log/postgresql/postgresql-14-main.log | grep "deadlock detected" -A 10
+- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres ERROR:  deadlock detected
+- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres DETAIL:  Process 6441 waits for ShareLock on transaction 745; blocked by process 6445.
+-         Process 6445 waits for ShareLock on transaction 744; blocked by process 6441.
+-         Process 6441: UPDATE messages SET message = 'message from session 1' WHERE id = 2;
+-         Process 6445: UPDATE messages SET message = 'message from session 2' WHERE id = 1;
+- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres HINT:  See server log for query details.
+- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres CONTEXT:  while updating tuple (0,9) in relation "messages"
+- 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 1' WHERE id = 2;
+- 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres LOG:  process 6445 acquired ShareLock on transaction 744 after 8730.794 ms
+- 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres CONTEXT:  while updating tuple (0,10) in relation "messages"
+- 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 2' WHERE id = 1;
+5. Смоделируйте ситуацию обновления одной и той же строки тремя командами UPDATE в разных сеансах. Изучите возникшие блокировки в представлении pg_locks и убедитесь, что все они понятны. Пришлите список блокировок и объясните, что значит каждая.
 подготовка
 
 sudo -u postgres psql -c "drop table messages"
