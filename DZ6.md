@@ -229,6 +229,7 @@ ORDER BY pid, virtualxid, transactionid::text::bigint;
 
 
 6. Воспроизвожу взаимоблокировку трех транзакций. Можно ли разобраться в ситуации постфактум, изучая журнал сообщений?
+
 6.1. Удаляю предидущую таблицу
 ```bash
 sudo -u postgres psql -c "drop table messages"
