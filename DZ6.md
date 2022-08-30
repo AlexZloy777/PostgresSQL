@@ -7,8 +7,8 @@ ALTER SYSTEM
 postgres=# ALTER SYSTEM SET deadlock_timeout TO 200;
 ALTER SYSTEM
 postgres=# select pg_reload_conf();
-pg_reload_conf
 ```
+|pg_reload_conf  |
 |----------------|
 | t              |
 | (1 row)        |
@@ -22,34 +22,38 @@ postgres=# show deadlock_timeout;
 4. Воспроизвожу ситуацию, при которой в журнале появятся такие сообщения.
 
 4.1. Создал таблицу
-- postgres=# create table messages(id int primary key,message text);
-- CREATE TABLE
-- postgres=# insert into messages values (1, 'hello world');
-- INSERT 0 1
-- postgres=# insert into messages values (2, 'мама мыла раму');
-- INSERT 0 1
-
-4.2. 1 подключение
-- sudo -u postgres psql << EOF
-- BEGIN;
-- SELECT message FROM messages WHERE id = 1 FOR UPDATE;
-- SELECT pg_sleep(10);
-- UPDATE messages SET message = 'message from session 1' WHERE id = 2;
-- COMMIT;
-- EOF
-
-4.3. 2 подключение
-- sudo -u postgres psql << EOF
-- BEGIN;
-- SELECT message FROM messages WHERE id = 2 FOR UPDATE;
-- UPDATE messages SET message = 'message from session 2' WHERE id = 1;
-- COMMIT;
-- EOF
-
+```sql
+postgres=# create table messages(id int primary key,message text);
+CREATE TABLE
+postgres=# insert into messages values (1, 'hello world');
+INSERT 0 1
+postgres=# insert into messages values (2, 'мама мыла раму');
+INSERT 0 1
+```
+4.2. подключение 1
+```sql
+sudo -u postgres psql << EOF
+BEGIN;
+SELECT message FROM messages WHERE id = 1 FOR UPDATE;
+SELECT pg_sleep(10);
+UPDATE messages SET message = 'message from session 1' WHERE id = 2;
+COMMIT;
+EOF
+```
+4.3. подключение 2
+```sql
+sudo -u postgres psql << EOF
+BEGIN;
+SELECT message FROM messages WHERE id = 2 FOR UPDATE;
+UPDATE messages SET message = 'message from session 2' WHERE id = 1;
+COMMIT;
+EOF
+```
 4.4. Результат
-- sudo -u postgres psql -c "select * from messages"
-- postgres=# select * from messages;
-
+``sql
+sudo -u postgres psql -c "select * from messages"
+postgres=# select * from messages;
+```
 | id |        message         |
 | ---|------------------------|
 |  2 | hello world            |
@@ -57,13 +61,14 @@ postgres=# show deadlock_timeout;
 | (2 rows)                    |
 
 4.5. Первая сессия оборвалась с ошибкой
-- ERROR:  deadlock detected
-- DETAIL:  Process 6441 waits for ShareLock on transaction 745; blocked by process 6445.
-- Process 6445 waits for ShareLock on transaction 744; blocked by process 6441.
-- HINT:  See server log for query details.
-- CONTEXT:  while updating tuple (0,9) in relation "messages"
-- ROLLBACK
-
+```log 
+ERROR:  deadlock detected
+DETAIL:  Process 6441 waits for ShareLock on transaction 745; blocked by process 6445.
+Process 6445 waits for ShareLock on transaction 744; blocked by process 6441.
+HINT:  See server log for query details.
+CONTEXT:  while updating tuple (0,9) in relation "messages"
+ROLLBACK
+```
 4.6. Вторая при этом успешно завершилась
 
 4.7.В логе при этом
