@@ -24,6 +24,7 @@
 - INSERT 0 1
 - postgres=# insert into messages values (2, 'мама мыла раму');
 - INSERT 0 1
+
 4.2. 1 подключение
 - sudo -u postgres psql << EOF
 - BEGIN;
@@ -32,6 +33,7 @@
 - UPDATE messages SET message = 'message from session 1' WHERE id = 2;
 - COMMIT;
 - EOF
+
 4.3. 2 подключение
 - sudo -u postgres psql << EOF
 - BEGIN;
@@ -39,6 +41,7 @@
 - UPDATE messages SET message = 'message from session 2' WHERE id = 1;
 - COMMIT;
 - EOF
+
 4.4. Результат
 - sudo -u postgres psql -c "select * from messages"
 - postgres=# select * from messages;
@@ -47,6 +50,7 @@
 -  2 | hello world
 -  1 | message from session 2
 -(2 rows)
+
 4.5. Первая сессия оборвалась с ошибкой
 - ERROR:  deadlock detected
 - DETAIL:  Process 6441 waits for ShareLock on transaction 745; blocked by process 6445.
@@ -54,7 +58,9 @@
 - HINT:  See server log for query details.
 - CONTEXT:  while updating tuple (0,9) in relation "messages"
 - ROLLBACK
+
 4.6. Вторая при этом успешно завершилась
+
 4.7.В логе при этом
 - cpostgres@postgres:~$ cat /var/log/postgresql/postgresql-14-main.log | grep "deadlock detected" -A 10
 - 2022-08-30 05:07:49.340 UTC [6441] postgres@postgres ERROR:  deadlock detected
@@ -68,6 +74,7 @@
 - 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres LOG:  process 6445 acquired ShareLock on transaction 744 after 8730.794 ms
 - 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres CONTEXT:  while updating tuple (0,10) in relation "messages"
 - 2022-08-30 05:07:49.340 UTC [6445] postgres@postgres STATEMENT:  UPDATE messages SET message = 'message from session 2' WHERE id = 1;
+
 5. Смоделируйте ситуацию обновления одной и той же строки тремя командами UPDATE в разных сеансах. Изучите возникшие блокировки в представлении pg_locks и убедитесь, что все они понятны. Пришлите список блокировок и объясните, что значит каждая.
 подготовка
 
