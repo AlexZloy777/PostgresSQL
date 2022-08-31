@@ -109,7 +109,7 @@ BEGIN;
 SELECT pg_backend_pid() as pid, txid_current() as tid;
 UPDATE messages SET message = 'message from session 1' WHERE id = 1;
 ```
-5.5. подключение 1
+5.5. подключение 2
 ```sql
 BEGIN;
 SELECT pg_backend_pid() as pid, txid_current() as tid;
