@@ -1,10 +1,10 @@
 1. Создал кластер на YC 2 CPU 4Gb RAM 15Gb HDD. Ubuntu 22.04 PostgreSQL 14
-2. Настройте выполнение контрольной точки раз в 30 секунд.
+2. Настроил выполнение контрольной точки раз в 30 секунд.
 ```bash
 echo "checkpoint_timeout = 30s" | sudo tee -a /etc/postgresql/14/main/postgresql.conf
 sudo systemctl restart postgresql
 ```
-3. 10 минут c помощью утилиты pgbench подавайте нагрузку.
+3. 10 минут c помощью утилиты pgbench подавал нагрузку.
 ```bash
 sudo -u postgres psql -c "select pg_stat_reset()"
 sudo -u postgres psql -c "select pg_stat_reset_shared('bgwriter')"
