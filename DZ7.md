@@ -46,7 +46,7 @@ sudo -u postgres psql -p 5433 -c "insert into messages (message) values ('hello'
 sudo -u postgres psql -p 5433 -c "insert into messages (message) values ('world')"
 sudo -u postgres psql -p 5433 -c "SELECT pg_relation_filepath('messages');" # base/13427/16384
 sudo pg_ctlcluster 14 demo stop
-sudo dd if=/dev/zero of=/var/lib/postgresql/12/demo/base/13427/16384 oflag=dsync conv=notrunc bs=1 count=8
+sudo dd if=/dev/zero of=/var/lib/postgresql/14/demo/base/13427/16384 oflag=dsync conv=notrunc bs=1 count=8
 sudo pg_ctlcluster 14 demo start
 sudo -u postgres psql -p 5433 -c "select * from messages"
 ```
